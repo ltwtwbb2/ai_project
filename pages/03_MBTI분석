@@ -4,13 +4,13 @@ import plotly.graph_objects as go
 
 # 1. 페이지 레이아웃 설정
 st.set_page_config(
-    page_title="국가별 MBTI 분석 대시보드",
-    page_icon="📊",
+    page_title="세계 MBTI 통계 대시보드",
+    page_icon="🌍",
     layout="wide"
 )
 
-st.title("📊 국가별 MBTI 분포 시각화 대시보드")
-st.markdown("데이터셋에서 국가를 선택하면 16가지 MBTI 유형의 비율을 맞춤형 막대그래프로 보여줍니다.")
+st.title("🌍 세계 MBTI 분포 & 순위 대시보드")
+st.markdown("국가별 MBTI 비율 순위와 MBTI별 국가 순위를 초록색 그라데이션 그래프로 확인해 보세요.")
 
 # 2. 데이터 로드 (캐싱으로 성능 최적화)
 @st.cache_data
@@ -27,74 +27,116 @@ except FileNotFoundError:
     st.error("❌ `countriesMBTI_16types.csv` 파일이 스크립트와 같은 폴더에 있는지 확인해 주세요.")
     st.stop()
 
-# 3. 사이드바 - 국가 선택 인터페이스
-st.sidebar.header("🗺️ 국가 설정")
-country_list = sorted(df['Country'].unique())
-# 데이터에 South Korea가 있다면 기본값으로 설정, 없으면 첫 번째 국가
-default_idx = country_list.index("South Korea") if "South Korea" in country_list else 0
-selected_country = st.sidebar.selectbox("분석할 국가를 선택하세요:", country_list, index=default_idx)
-
-# 4. 데이터 가공 (선택된 국가의 MBTI 비율 내림차순 정렬)
-country_data = df[df['Country'] == selected_country].iloc[0]
-sorted_mbti = country_data[mbti_types].sort_values(ascending=False)
-
-mbti_labels = sorted_mbti.index.tolist()
-mbti_values = sorted_mbti.values.tolist()
-
-# 5. 그래프 색상 지정 로직 (1등: 노란색, 나머지: 하늘색에서 투명해지는 그라데이션)
-# 총 16개 유형이므로 1등을 제외한 15개 막대에 투명도(opacity)를 차등 부여합니다.
-colors = []
-for i in range(16):
-    if i == 0:
-        colors.append("rgba(255, 215, 0, 1.0)")  # 1등: 진한 노란색 (Gold)
-    else:
-        # 2등(최고 선명도)부터 16등(최저 선명도)까지 알파(투명도) 값을 0.9에서 0.15까지 서서히 낮춤
-        opacity = 0.9 - (i - 1) * (0.75 / 14)
-        colors.append(f"rgba(135, 206, 250, {opacity})")  # 하늘색 (LightSkyBlue) 기반 그라데이션
-
-# 6. Plotly 고급 막대그래프 생성
-fig = go.Figure()
-fig.add_trace(go.Bar(
-    x=mbti_labels,
-    y=mbti_values,
-    marker_color=colors,
-    text=[f"{val:.2f}%" for val in mbti_values],
-    textposition='outside',
-    hoverinfo='x+y'
-))
-
-# 그래프 레이아웃 다듬기
-fig.update_layout(
-    title=f"<b>{selected_country}의 MBTI 유형별 비율 순위</b>",
-    title_font_size=20,
-    xaxis=dict(title="MBTI 유형", title_font_size=14, tickfont_size=12),
-    yaxis=dict(title="비율 (%)", title_font_size=14, tickfont_size=12, range=[0, max(mbti_values) * 1.15]),
-    margin=dict(l=40, r=40, t=60, b=40),
-    height=550,
-    plot_bgcolor='rgba(0,0,0,0)',  # 깔끔한 흰색 배경
-    paper_bgcolor='rgba(0,0,0,0)'
+# 3. 사이드바 - 분석 기능 선택
+st.sidebar.header("⚙️ 기능 선택")
+analysis_mode = st.sidebar.radio(
+    "원하는 분석을 선택하세요:",
+    ["1. 국가별 MBTI 비율 (1등부터)", "2. MBTI별 상위 10개국 (1등부터)"]
 )
 
-# 축 그리드 라인 스타일 추가
-fig.update_yaxes(showgrid=True, gridwidth=1, gridcolor='rgba(200, 200, 200, 0.3)')
-
-# 7. 화면 배치
-col1, col2 = st.columns([3, 1])
-
-with col1:
-    st.plotly_chart(fig, use_container_width=True)
-
-with col2:
-    st.subheader("📋 요약 정보")
-    st.write(f"**선택된 국가:** {selected_country}")
-    st.info(f"🏆 가장 많은 유형: **{mbti_labels[0]}** ({mbti_values[0]:.2f}%)")
-    st.warning(f"❄️ 가장 희귀한 유형: **{mbti_labels[-1]}** ({mbti_values[-1]:.2f}%)")
+# --- [기능 1] 국가별 MBTI 비율 (1등부터 출력) ---
+if analysis_mode == "1. 국가별 MBTI 비율 (1등부터)":
+    st.subheader("📊 국가별 MBTI 비율 순위")
     
-    # 세부 순위 표 출력
-    st.markdown("**전체 데이터 순위**")
-    rank_df = pd.DataFrame({
-        'MBTI': mbti_labels,
-        '비율': [f"{v:.2f}%" for v in mbti_values]
-    })
-    rank_df.index = rank_df.index + 1
-    st.dataframe(rank_df, use_container_width=True)
+    country_list = sorted(df['Country'].unique())
+    default_idx = country_list.index("South Korea") if "South Korea" in country_list else 0
+    selected_country = st.selectbox("분석할 국가를 선택하세요:", country_list, index=default_idx)
+    
+    # 데이터 가공 (선택된 국가의 MBTI 비율 내림차순 정렬)
+    country_data = df[df['Country'] == selected_country].iloc[0]
+    sorted_mbti = country_data[mbti_types].sort_values(ascending=False)
+    
+    mbti_labels = sorted_mbti.index.tolist()
+    mbti_values = sorted_mbti.values.tolist()
+    
+    # 초록색 그라데이션 색상 지정 (1등이 가장 진하고 뒤로 갈수록 흐려짐)
+    # 총 16개 유형이므로 알파(투명도) 값을 1.0에서 0.15까지 차등 부여
+    colors = []
+    for i in range(16):
+        opacity = 1.0 - i * (0.85 / 15)
+        colors.append(f"rgba(34, 139, 34, {opacity})")  # ForestGreen 기반 그라데이션
+        
+    # Plotly 막대그래프 생성
+    fig = go.Figure()
+    fig.add_trace(go.Bar(
+        x=mbti_labels,
+        y=mbti_values,
+        marker_color=colors,
+        text=[f"{val:.2f}%" for val in mbti_values],
+        textposition='outside',
+        hoverinfo='x+y'
+    ))
+    
+    fig.update_layout(
+        title=f"<b>{selected_country}의 MBTI 유형별 비율 (1등부터 순위)</b>",
+        title_font_size=18,
+        xaxis=dict(title="MBTI 유형", tickfont_size=12),
+        yaxis=dict(title="비율 (%)", range=[0, max(mbti_values) * 1.15]),
+        height=500,
+        plot_bgcolor='rgba(0,0,0,0)'
+    )
+    fig.update_yaxes(showgrid=True, gridwidth=1, gridcolor='rgba(200, 200, 200, 0.3)')
+    
+    # 레이아웃 배치
+    col1, col2 = st.columns([3, 1])
+    with col1:
+        st.plotly_chart(fig, use_container_width=True)
+    with col2:
+        st.markdown(f"### 📋 {selected_country} 요약")
+        st.success(f"🥇 **1등 유형:** {mbti_labels[0]} ({mbti_values[0]:.2f}%)")
+        
+        rank_df = pd.DataFrame({'MBTI': mbti_labels, '비율': [f"{v:.2f}%" for v in mbti_values]})
+        rank_df.index = rank_df.index + 1
+        st.dataframe(rank_df, use_container_width=True)
+
+
+# --- [기능 2] MBTI별 상위 10개국 (1등부터 출력) ---
+elif analysis_mode == "2. MBTI별 상위 10개국 (1등부터)":
+    st.subheader("🗺️ 특정 MBTI 비율이 높은 상위 10개국")
+    
+    selected_mbti = st.selectbox("분석할 MBTI 유형을 선택하세요:", mbti_types)
+    
+    # 데이터 가공 (선택된 MBTI 기준 내림차순 정렬 후 상위 10개국 추출)
+    mbti_rank = df[['Country', selected_mbti]].sort_values(by=selected_mbti, ascending=False).head(10).reset_index(drop=True)
+    
+    country_labels = mbti_rank['Country'].tolist()
+    country_values = mbti_rank[selected_mbti].tolist()
+    
+    # 초록색 그라데이션 색상 지정 (상위 10개국 대상, 1등이 가장 진함)
+    # 총 10개 국가이므로 알파(투명도) 값을 1.0에서 0.3까지 차등 부여
+    colors = []
+    for i in range(10):
+        opacity = 1.0 - i * (0.7 / 9)
+        colors.append(f"rgba(46, 139, 87, {opacity})")  # SeaGreen 기반 그라데이션
+
+    # Plotly 막대그래프 생성
+    fig = go.Figure()
+    fig.add_trace(go.Bar(
+        x=country_labels,
+        y=country_values,
+        marker_color=colors,
+        text=[f"{val:.2f}%" for val in country_values],
+        textposition='outside',
+        hoverinfo='x+y'
+    ))
+    
+    fig.update_layout(
+        title=f"<b>{selected_mbti} 비율이 가장 높은 국가 Top 10 (1등부터)</b>",
+        title_font_size=18,
+        xaxis=dict(title="국가", tickfont_size=12),
+        yaxis=dict(title="비율 (%)", range=[0, max(country_values) * 1.15]),
+        height=500,
+        plot_bgcolor='rgba(0,0,0,0)'
+    )
+    fig.update_yaxes(showgrid=True, gridwidth=1, gridcolor='rgba(200, 200, 200, 0.3)')
+    
+    # 레이아웃 배치
+    col1, col2 = st.columns([3, 1])
+    with col1:
+        st.plotly_chart(fig, use_container_width=True)
+    with col2:
+        st.markdown(f"### 📋 {selected_mbti} 탑 10 국가")
+        
+        rank_df = pd.DataFrame({'국가': country_labels, '비율': [f"{v:.2f}%" for v in country_values]})
+        rank_df.index = rank_df.index + 1
+        st.dataframe(rank_df, use_container_width=True)
