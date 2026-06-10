@@ -9,7 +9,7 @@ st.set_page_config(
     layout="centered"
 )
 
-# 2. 업로드한 이미지를 베이스64로 인코딩하여 배경에 주입하는 함수
+# 2. 새로 업로드한 이미지를 베이스64로 인코딩하여 배경에 주입하는 함수
 def set_background(image_file):
     with open(image_file, "rb") as f:
         img_data = f.read()
@@ -32,13 +32,13 @@ def set_background(image_file):
         content: "";
         position: fixed;
         top: 0; left: 0; width: 100%; height: 100%;
-        background-color: rgba(255, 255, 255, 0.65); /* 흰색 반투명 필터 (숫자가 낮을수록 배경이 진해짐) */
-        backdrop-filter: blur(6px); /* 배경 흐림 강도 (숫자가 높을수록 더 흐려짐) */
+        background-color: rgba(255, 255, 255, 0.65); /* 흰색 반투명 필터 (낮을수록 배경이 진해짐) */
+        backdrop-filter: blur(6px); /* 배경 흐림 강도 (높을수록 더 흐려짐) */
         -webkit-backdrop-filter: blur(6px);
         z-index: -1;
     }}
     
-    /* 입력창이나 박스가 배경과 잘 어우러지도록 스타일 살짝 조정 */
+    /* 입력창이 배경과 잘 어우러지도록 스타일 살짝 조정 */
     div[data-baseweb="select"] {{
         background-color: rgba(255, 255, 255, 0.8) !important;
     }}
@@ -46,11 +46,10 @@ def set_background(image_file):
     """
     st.markdown(bg_css, unsafe_allow_html=True)
 
-# 배경 이미지 적용 (업로드하신 파일명 지정)
+# 새로운 배경 이미지 적용 (새로 업로드하신 파일명으로 매핑)
 try:
-    set_background("image_f0445c.png")
+    set_background("image_eff1a2.png")
 except FileNotFoundError:
-    # 로컬 테스트 환경이나 파일명이 다를 경우를 대비한 예외 처리
     pass
 
 # 타이틀 및 본문
