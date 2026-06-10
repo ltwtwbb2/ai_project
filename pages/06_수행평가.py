@@ -1,25 +1,70 @@
 import streamlit as st
 import pandas as pd
+import base64
 
 # 1. 페이지 설정
 st.set_page_config(
     page_title="원신 나선비경 캐릭터 조회",
     page_icon="⚔️",
-    layout="centered"  # 캐릭터 단독 정보 조회를 위해 정렬을 중앙 집중형으로 변경
+    layout="centered"
 )
 
+# 2. 업로드한 이미지를 베이스64로 인코딩하여 배경에 주입하는 함수
+def set_background(image_file):
+    with open(image_file, "rb") as f:
+        img_data = f.read()
+    b64_encoded = base64.b64encode(img_data).decode()
+    
+    # CSS를 이용해 배경 이미지를 고정하고 흐림(blur) 효과 및 반투명 레이어 추가
+    bg_css = f"""
+    <style>
+    /* 전체 앱 배경 설정 */
+    .stApp {{
+        background-image: url("data:image/png;base64,{b64_encoded}");
+        background-size: cover;
+        background-position: center;
+        background-repeat: no-repeat;
+        background-attachment: fixed;
+    }}
+    
+    /* 배경 위에 살짝 흐릿한 가상 레이어를 얹어 글씨 가독성 확보 */
+    .stApp::before {{
+        content: "";
+        position: fixed;
+        top: 0; left: 0; width: 100%; height: 100%;
+        background-color: rgba(255, 255, 255, 0.65); /* 흰색 반투명 필터 (숫자가 낮을수록 배경이 진해짐) */
+        backdrop-filter: blur(6px); /* 배경 흐림 강도 (숫자가 높을수록 더 흐려짐) */
+        -webkit-backdrop-filter: blur(6px);
+        z-index: -1;
+    }}
+    
+    /* 입력창이나 박스가 배경과 잘 어우러지도록 스타일 살짝 조정 */
+    div[data-baseweb="select"] {{
+        background-color: rgba(255, 255, 255, 0.8) !important;
+    }}
+    </style>
+    """
+    st.markdown(bg_css, unsafe_allow_html=True)
+
+# 배경 이미지 적용 (업로드하신 파일명 지정)
+try:
+    set_background("image_f0445c.png")
+except FileNotFoundError:
+    # 로컬 테스트 환경이나 파일명이 다를 경우를 대비한 예외 처리
+    pass
+
+# 타이틀 및 본문
 st.title("⚔️ 원신 나선비경 캐릭터 픽률 조회")
 st.markdown("원하는 캐릭터를 선택하면 해당 캐릭터의 나선비경 픽률과 순위만 깔끔하게 확인할 수 있습니다.")
 
-# 2. 데이터 준비 (공월의 노래 여섯 번째 달 기준 데이터)
+# 3. 데이터 준비 (공월의 노래 여섯 번째 달 기준 데이터)
 @st.cache_data
 def load_abyss_data():
-    csv_filename = "genshin_abyss_mbti.csv" # 데이터 보관용 파일명
+    csv_filename = "genshin_abyss_mbti.csv"
     
     try:
         df = pd.read_csv(csv_filename)
     except FileNotFoundError:
-        # 5.6 버전 시점의 주요 캐릭터 및 가상 픽률 데이터셋 (픽률 기준 내림차순)
         mock_data = {
             "Character": [
                 "푸리나", "나히다", "종려", "카즈하", "느비예트", "야란", "백출", "알하이탐", 
@@ -37,27 +82,25 @@ def load_abyss_data():
         df = pd.DataFrame(mock_data)
         df.to_csv(csv_filename, index=False, encoding='utf-8-sig')
     
-    # 픽률 기준 내림차순 정렬 재확인
     df = df.sort_values(by="PickRate", ascending=False).reset_index(drop=True)
     return df
 
 df = load_abyss_data()
-character_list = sorted(df["Character"].tolist())  # 사용자가 찾기 쉽도록 선택 상자는 가나다순 정렬
+character_list = sorted(df["Character"].tolist())
 
-# 3. 본문 상단 - 캐릭터 선택 인터페이스
+# 4. 캐릭터 선택 인터페이스
 selected_char = st.selectbox("조회할 캐릭터를 선택하세요:", character_list, index=character_list.index("닐루") if "닐루" in character_list else 0)
 
-# 4. 선택된 캐릭터 정보 추출 및 순위 계산
+# 5. 선택된 캐릭터 정보 추출 및 순위 계산
 char_row = df[df["Character"] == selected_char].iloc[0]
 char_pick_rate = char_row["PickRate"]
 char_rank = df[df["Character"] == selected_char].index[0] + 1
 total_characters = len(df)
 
-# 5. 선택한 캐릭터에 대해서만 화면에 표시
+# 6. 선택한 캐릭터에 대해서만 화면에 표시
 st.markdown("---")
 st.subheader("🎯 선택된 캐릭터 상세 분석")
 
-# 깔끔한 레이아웃을 위해 좌우로 수치 지표 배치
 metrics_col1, metrics_col2 = st.columns(2)
 
 with metrics_col1:
@@ -66,11 +109,9 @@ with metrics_col1:
 with metrics_col2:
     st.metric(label="🏆 나선비경 픽률 순위", value=f"{char_rank} 위", delta=f"전체 {total_characters}명 중")
 
-# 진행 바(Progress Bar)를 활용해 픽률 시각적 표현
 st.markdown("**📊 픽률 게이지**")
 st.progress(char_pick_rate / 100.0)
 
-# 안내 메시지 박스
 if char_rank <= 5:
     st.success(f"🔥 **{selected_char}**은(는) 현재 최상위권 티어의 핵심 캐릭터입니다!")
 elif char_rank <= 15:
